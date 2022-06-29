@@ -1,4 +1,5 @@
-// checks if the user is logged in when trying to access a specific page
+// Comprueba si el usuario está conectado cuando intenta acceder a una página específica
+
 const isLoggedIn = (req, res, next) => {
     if (!req.session.currentUser) {
       return res.redirect("/login");
@@ -6,8 +7,9 @@ const isLoggedIn = (req, res, next) => {
     next();
   };
   
-  // if an already logged in user tries to access the login page it
-  // redirects the user to the home page
+  // Si un usuario ya conectado intenta acceder a la página de inicio de sesión, 
+  // redirige al usuario a la página de inicio
+  
   const isLoggedOut = (req, res, next) => {
     if (req.session.currentUser) {
       return res.redirect("/");
@@ -15,8 +17,6 @@ const isLoggedIn = (req, res, next) => {
     next();
   };
   
-  // export the functions to make them available to be used wherever we need them
-  // (we just need to import them to be able to use them)
   
   module.exports = {
     isLoggedIn,

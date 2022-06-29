@@ -1,29 +1,29 @@
 // routes/auth.routes.js
+// Link de las rutas
 
 const { Router } = require("express");
 const router = new Router();
 
-const mongoose = require("mongoose"); // <== has to be added
-const bcryptjs = require("bcryptjs");
+const mongoose = require("mongoose"); // conectar a mongoose
+const bcryptjs = require("bcryptjs"); // protege las contraseñas
 const saltRounds = 10;
 
 const User = require("../models/User.model");
 
-// require (import) middleware functions
+
 const { isLoggedIn, isLoggedOut } = require("../middleware/route-guard.js");
 
-// GET route ==> to display the signup form to users
-//                     .: ADDED :.
+//  middleware protege el cierre de la sesión
+
 router.get("/signup", isLoggedOut, (req, res) => res.render("auth/signup"));
 
-// POST route ==> to process form data
-//                      .: ADDED :.
+
 router.post("/signup", isLoggedOut, (req, res, next) => {
-  // console.log("The form data: ", req.body);
+  
 
   const { username,  password } = req.body;
 
-  // make sure users fill all mandatory fields:
+  // Si los dcampos no se han rellenado envía un aviso de error
   if (!username ||  !password) {
     res.render("auth/signup", {
       errorMessage: "All fields are mandatory. Please provide your username, username and password."
@@ -60,8 +60,8 @@ router.post("/signup", isLoggedOut, (req, res, next) => {
 
 router.get("/login", isLoggedOut, (req, res) => res.render("auth/login"));
 
-// POST login route ==> to process form data
-//                     .: ADDED :.
+// Añade un usuario al login 
+
 router.post("/login", isLoggedOut, (req, res, next) => {
   console.log("SESSION =====> ", req.session);
   const { username, password } = req.body;
@@ -73,32 +73,32 @@ router.post("/login", isLoggedOut, (req, res, next) => {
     return;
   }
 
-  User.findOne({ username }) // <== check if there's user with the provided username
+  User.findOne({ username }) // <== comprueba si hay un usuario con el mismo nombre
     .then((user) => {
-      // <== "user" here is just a placeholder and represents the response from the DB
+      
       if (!user) {
-        // <== if there's no user with provided username, notify the user who is trying to login
+        // <== si no hay ningún usuario con el nombre de usuario, notifica al usuario que está intentando conectarse
         res.render("auth/login", { errorMessage: "Email is not registered. Try with other username." });
         return;
       }
-      // if there's a user, compare provided password
-      // with the hashed password saved in the database
+      // compara la contraseña proporcionada
+      // on la contraseña cifrada guardada en la base de datos
       else if (bcryptjs.compareSync(password, user.password)) {
-        // if the two passwords match, render the user-profile.hbs and
-        //                   pass the user object to this view
-        //                                 |
-        //                                 V
-        // res.render("users/user-profile", { user });
+        // si las dos contraseñas coinciden, renderiza el user-profile.hbs y
+        // pasa el objeto usuario a esta vista
+        // |
+        // V
+        // res.render("usuarios/perfil-de-usuario", { usuario });
 
-        // when we introduce session, the following line gets replaced with what follows:
-        // res.render('users/user-profile', { user });
+        // cuando introducimos la sesión, la siguiente línea se sustituye por lo que sigue:
+        // res.render('users/user-profile', { user });;
 
-        //******* SAVE THE USER IN THE SESSION ********//
+        //******* GUARDA LA SESIÓNN DEL USUARIO  ********//
         req.session.currentUser = user;
         res.redirect("/main");
       } else {
-        // if the two passwords DON'T match, render the login form again
-        // and send the error message to the user
+        // si las dos contraseñas NO coinciden, vuelve a mostrar el formulario de acceso
+        // y envía el mensaje de error al usuario
         res.render("auth/login", { errorMessage: "Incorrect password." });
       }
     })
