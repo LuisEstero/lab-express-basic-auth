@@ -1,110 +1,149 @@
-// routes/auth.routes.js
-// Link de las rutas
+const router = require("express").Router();
+const UserModel = require("../models/User.model")
+const bcrypt = require("bcryptjs")
 
-const { Router } = require("express");
-const router = new Router();
+const isLoggedIn = require("../middlewares/isLoggedIn")
 
-const mongoose = require("mongoose"); // conectar a mongoose
-const bcryptjs = require("bcryptjs"); // protege las contraseñas
-const saltRounds = 10;
+// aqui estarán todas nuestras rutas de auth´
 
-const User = require("../models/User.model");
+router.get("/signup", (req, res, next) => {
+  res.render("auth/signup.hbs")
+})
 
+router.post("/signup", async (req, res, next) => {
+  // ? donde está la informacion del usuario?
+  console.log(req.body)
+  const { username, email, password } = req.body
 
-const { isLoggedIn, isLoggedOut } = require("../middleware/route-guard.js");
+  // 1. Validadores de backend
 
-//  middleware protege el cierre de la sesión
+  // 1.1 Revisar que todos los campos son recibidos
+  if (!username || !email || !password) {
+    res.render("auth/signup.hbs", {
+      errorMessage: "Debes llenar todos los campos!"
+    })
+    return; // este return deja de ejecutar la ruta cuando la información no pasa esta validación
+  }
 
-router.get("/signup", isLoggedOut, (req, res) => res.render("auth/signup"));
+  // 1.2 Revisar que la contraseña sea apta
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[$@$!%*?&])[A-Za-z\d$@$!%*?&]{8,15}/;
 
+  if (!passwordRegex.test(password)) {
+    res.render("auth/signup.hbs", {
+      errorMessage: "Contraseña debe ser entre 8 y 15, tener mayúscula, minúscula, dígito y un caracter especial"
+    })
+    return;
+  }
 
-router.post("/signup", isLoggedOut, (req, res, next) => {
+  // 1.3 Revisar que el email tenga formato correcto
+  // ... les queda de tarea
+
+  try {
+
+    // 1.4 Que no exista un usuario con el mismo email
+    const foundUser = await UserModel.findOne({ email })
+    if (foundUser) {
+      res.render("auth/signup.hbs", {
+        errorMessage: "Usuario ya registrado"
+      })
+      return;
+    }
+
+    // Encriptar la contraseña
+    const salt = await bcrypt.genSalt(10)
+    const hashedPassword = await bcrypt.hash(password, salt)
   
+  
+    // 2 crear el usuario
+    await UserModel.create({
+      username,
+      email,
+      password: hashedPassword
+    })
+  
+    // 3 dirigir al usuario a otra pagina
+    res.redirect("/auth/login")
 
-  const { username,  password } = req.body;
-
-  // Si los dcampos no se han rellenado envía un aviso de error
-  if (!username ||  !password) {
-    res.render("auth/signup", {
-      errorMessage: "All fields are mandatory. Please provide your username, username and password."
-    });
-    return;
+  } catch(err) {
+    next(err)
   }
 
 
-  bcryptjs
-    .genSalt(saltRounds)
-    .then((salt) => bcryptjs.hash(password, salt))
-    .then((hashedPassword) => {
-      return User.create({
-        username,
-        password: hashedPassword
-      });
+
+})
+
+router.get("/login", (req, res, next) => {
+  res.render("auth/login.hbs")
+})
+
+router.post("/login", async (req, res, next) => {
+  console.log(req.body)
+
+  const { email, password } = req.body
+
+  // 1. Van nuestras validaciónes
+
+  // 1.1 El usuario debe enviar ambas credenciales
+  if (!email || !password) {
+    res.render("auth/login.hbs", {
+      errorMessage: "Debes llenar todos los campos"
     })
-    .then((userFromDB) => {
-      
-      res.redirect("/main");
-    })
-    .catch((error) => {
-      if (error instanceof mongoose.Error.ValidationError) {
-        res.status(500).render("auth/signup", { errorMessage: error.message });
-      } else if (error.code === 11000) {
-        res.status(500).render("auth/signup", {
-          errorMessage: "Username and username need to be unique. Either username or username is already used."
-        });
-      } else {
-        next(error);
-      }
-    }); 
-});
-
-router.get("/login", isLoggedOut, (req, res) => res.render("auth/login"));
-
-// Añade un usuario al login 
-
-router.post("/login", isLoggedOut, (req, res, next) => {
-  console.log("SESSION =====> ", req.session);
-  const { username, password } = req.body;
-
-  if (username === "" || password === "") {
-    res.render("auth/login", {
-      errorMessage: "Please enter both, username and password to login."
-    });
     return;
   }
 
-  User.findOne({ username }) // <== comprueba si hay un usuario con el mismo nombre
-    .then((user) => {
-      
-      if (!user) {
-        // <== si no hay ningún usuario con el nombre de usuario, notifica al usuario que está intentando conectarse
-        res.render("auth/login", { errorMessage: "Email is not registered. Try with other username." });
-        return;
-      }
-      // compara la contraseña proporcionada
-      // on la contraseña cifrada guardada en la base de datos
-      else if (bcryptjs.compareSync(password, user.password)) {
-        // si las dos contraseñas coinciden, renderiza el user-profile.hbs y
-        // pasa el objeto usuario a esta vista
-        // |
-        // V
-        // res.render("usuarios/perfil-de-usuario", { usuario });
+  try {
+    // 1.2 Que el usuario exista en nuestra base de datos
+    const foundUser = await UserModel.findOne({email})
+  
+    if(!foundUser) {
+      res.render("auth/login.hbs", {
+        errorMessage: "El usuario con ese email no existe en nuestra base datos"
+      })
+      return;
+    }
 
-        // cuando introducimos la sesión, la siguiente línea se sustituye por lo que sigue:
-        // res.render('users/user-profile', { user });;
+    // 1.3 Confirmar que la contraseña sea correcta
+    const passwordMatch = await bcrypt.compare(password, foundUser.password )
+    console.log(passwordMatch)
+    // 1234abcD!
 
-        //******* GUARDA LA SESIÓNN DEL USUARIO  ********//
-        req.session.currentUser = user;
-        res.redirect("/main");
-      } else {
-        // si las dos contraseñas NO coinciden, vuelve a mostrar el formulario de acceso
-        // y envía el mensaje de error al usuario
-        res.render("auth/login", { errorMessage: "Incorrect password." });
-      }
-    })
-    .catch((error) => next(error));
-});
+    if(!passwordMatch) {
+      res.render("auth/login.hbs", {
+        errorMessage: "fuera de aqui, impostor. sus"
+      })
+      return;
+    }
+  
+    // * hemos autenticado al usuario
 
+    // 2. Iniciar la sesión del usuario
+    // toooooda la configuración es para poder tener acceso a la sesión (req.session)
+    req.session.user = foundUser
+    // DE AHORA EN ADELANTE NOSOTROS TENEMOS ACCESO AL USUARIO ACTIVO EN REQ.SESSION.USER
+  
+    req.app.locals.isLoggedIn = true
+    if (foundUser.role === "admin") {
+      req.app.locals.isAdmin = true
+    }
+
+    // 3. redireccionar al usuario a su perfil
+    res.redirect("/profile")
+
+  } catch(err) {
+    next(err)
+  }
+
+
+})
+
+router.get("/logout", (req, res, next) => {
+
+  req.session.destroy()
+  req.app.locals.isLoggedIn = false
+  req.app.locals.isAdmin = false
+
+  res.redirect("/")
+
+})
 
 module.exports = router;
-

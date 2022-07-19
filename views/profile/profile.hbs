@@ -1,0 +1,12 @@
+<div>
+  {{!-- <h3>Tu cuenta bancaria es : 72836j1hfjfdfa</h3>
+  <h4>Y tienes 10 euros en la cuenta</h4> --}}
+  {{!-- Esta vista podría tener informacion que viene del usuario --}}
+  <h2>Bienvenido: {{user.username}}</h2>
+  <img src="{{user.profilePic}}" alt="pic">
+
+  <form action="/profile/upload/profile-pic" method="POST" enctype="multipart/form-data">
+    <input type="file" name="image">
+    <button>Agregar imagen</button>
+  </form>
+</div>
